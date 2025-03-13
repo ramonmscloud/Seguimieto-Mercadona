@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Compras - Mercadona</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #f5f5f5;
+        }
+        .wrapper {
+            position: relative;
+            min-height: 100vh;
+            background-image: url('shopping-cart.svg');
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+            background-attachment: fixed;
+        }
+        .wrapper::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(245, 245, 245, 0.5);
+            z-index: -1;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section-header {
+            background-color: #009900;
+            color: white;
+            padding: 10px;
+            margin: 20px 0 10px 0;
+            border-radius: 5px;
+        }
+        .item-list {
+            list-style: none;
+        }
+        .item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            background-color: white;
+            margin: 5px 0;
+            border-radius: 3px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .item input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+        .item.checked {
+            background-color: #e8f5e9;
+            text-decoration: line-through;
+            color: #666;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .item {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <header>
+            <h1>Lista de Compras - Mercadona</h1>
+            <p>Usuario: guest</p>
+            <p>Fecha: 12/3/2025</p>
+        </header>
+        <div id="file-upload" class="upload-section">
+            <h2>Por favor, seleccione su archivo de lista de compras</h2>
+            <input type="file" id="file-input" accept=".txt">
+        </div>
+        <div id="shopping-list" style="display: none;"></div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const fileUploadSection = document.getElementById('file-upload');
+        const shoppingList = document.getElementById('shopping-list');
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const sections = parseTextFile(text);
+                renderSections(sections);
+                fileUploadSection.style.display = 'none';
+                shoppingList.style.display = 'block';
+            } catch (error) {
+                alert('Error al procesar el archivo: ' + error.message);
+            }
+        });
+
+        function parseTextFile(text) {
+            const lines = text.split('\n');
+            const sections = [];
+            let currentSection = null;
+
+            lines.forEach(line => {
+                if (line.match(/^\d+\s*-/)) {
+                    if (currentSection) sections.push(currentSection);
+                    currentSection = { title: line.trim(), items: [] };
+                } else if (currentSection && line.trim().startsWith('[ ]')) {
+                    const item = line.replace('[ ]', '').trim();
+                    if (item) currentSection.items.push(item);
+                }
+            });
+
+            if (currentSection && currentSection.items.length > 0) {
+                sections.push(currentSection);
+            }
+
+            return sections;
+        }
+
+        function renderSections(sections) {
+            shoppingList.innerHTML = '';
+            sections.forEach(section => {
+                const sectionElement = document.createElement('div');
+                sectionElement.innerHTML = `
+                    <h2 class="section-header">${section.title}</h2>
+                    <ul class="item-list">
+                        ${section.items.map(item => `
+                            <li class="item">
+                                <input type="checkbox" id="${item}">
+                                <label for="${item}">${item}</label>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+                shoppingList.appendChild(sectionElement);
+            });
+
+            document.querySelectorAll('.item input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const item = e.target.closest('.item');
+                    if (e.target.checked) {
+                        item.classList.add('checked');
+                    } else {
+                        item.classList.remove('checked');
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
