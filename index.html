@@ -69,6 +69,20 @@
             text-decoration: line-through;
             color: #666;
         }
+        .file-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #009900;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+
+        .file-label input[type="file"] {
+            display: none;
+        }
+
         @media (max-width: 600px) {
             body {
                 padding: 10px;
@@ -88,7 +102,10 @@
         </header>
         <div id="file-upload" class="upload-section">
             <h2>Por favor, seleccione su archivo de lista de compras</h2>
-            <input type="file" id="file-input" accept=".txt">
+            <label for="file-input" class="file-label">
+                Seleccionar archivo de lista de compras (.txt)
+                <input type="file" id="file-input" accept=".txt">
+            </label>
         </div>
         <div id="shopping-list" style="display: none;"></div>
     </div>
@@ -104,11 +121,22 @@
 
             try {
                 const text = await file.text();
+                console.log('Contenido del archivo:', text);
+                
+                console.log('Contenido del archivo leído:', text);
                 const sections = parseTextFile(text);
+                console.log('Secciones procesadas:', sections);
+                if (!sections || sections.length === 0) {
+                    console.error('No se encontraron secciones válidas en el archivo.');
+                } else {
+                    console.log('Secciones válidas encontradas:', sections);
+                }
+                renderSections(sections);
                 renderSections(sections);
                 fileUploadSection.style.display = 'none';
                 shoppingList.style.display = 'block';
             } catch (error) {
+                console.error('Error detallado:', error);
                 alert('Error al procesar el archivo: ' + error.message);
             }
         });
@@ -117,13 +145,29 @@
             const lines = text.split('\n');
             const sections = [];
             let currentSection = null;
+            let isHeader = true;
 
             lines.forEach(line => {
-                if (line.match(/^\d+\s*-/)) {
+                const trimmedLine = line.trim();
+                
+                // Ignorar líneas vacías y encabezado
+                if (!trimmedLine || isHeader) {
+                    if (trimmedLine.startsWith('Lista de Compras')) {
+                        isHeader = true;
+                    } else if (trimmedLine === '') {
+                        isHeader = false;
+                    }
+                    return;
+                }
+
+                // Detecta encabezados de sección (ejemplo: "01 - Pasillo limpieza")
+                if (trimmedLine.match(/^\d+\s/)) {
                     if (currentSection) sections.push(currentSection);
-                    currentSection = { title: line.trim(), items: [] };
-                } else if (currentSection && line.trim().startsWith('[ ]')) {
-                    const item = line.replace('[ ]', '').trim();
+                    currentSection = { title: trimmedLine, items: [] };
+                }
+                // Detecta items que empiezan con "[ ]"
+                else if (currentSection && trimmedLine.startsWith('-')) {
+                    const item = trimmedLine.substring(1).trim();
                     if (item) currentSection.items.push(item);
                 }
             });
@@ -132,11 +176,20 @@
                 sections.push(currentSection);
             }
 
+            if (lines.some(line => line.startsWith('OBSERVACIONES:'))) {
+                const observations = lines.slice(lines.findIndex(line => line.startsWith('OBSERVACIONES:')) + 1)
+                    .filter(line => line.trim() !== '')
+                    .map(line => line.trim());
+                if (observations.length > 0) {
+                    sections.push({ title: 'Observaciones', items: observations });
+                }
+            }
             return sections;
         }
 
         function renderSections(sections) {
             shoppingList.innerHTML = '';
+            console.log('Renderizando secciones:', sections);
             sections.forEach(section => {
                 const sectionElement = document.createElement('div');
                 sectionElement.innerHTML = `
@@ -144,14 +197,16 @@
                     <ul class="item-list">
                         ${section.items.map(item => `
                             <li class="item">
-                                <input type="checkbox" id="${item}">
-                                <label for="${item}">${item}</label>
+                                <input type="checkbox" id="${item.replace(/\s+/g, '-')}">
+                                <label for="${item.replace(/\s+/g, '-')}">${item}</label>
                             </li>
                         `).join('')}
                     </ul>
                 `;
+                console.log('Añadiendo sección al DOM:', section.title);
                 shoppingList.appendChild(sectionElement);
             });
+            console.log('Contenido final del DOM:', shoppingList.innerHTML);
 
             document.querySelectorAll('.item input[type="checkbox"]').forEach(checkbox => {
                 checkbox.addEventListener('change', (e) => {
